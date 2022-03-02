@@ -26,3 +26,18 @@ public class TracerSdk: Tracer {
                               spanLimits: sharedState.activeSpanLimits)
     }
 }
+
+public class InterceptedTracerSdk: TracerSdk {
+	
+	public var parentSpan: Span?
+	
+	public override func spanBuilder(spanName: String) -> SpanBuilder {
+		var builder = super.spanBuilder(spanName: spanName)
+
+		if let parentSpan = parentSpan {
+			builder = builder.setParent(parentSpan)
+		}
+
+		return builder
+	}
+}
