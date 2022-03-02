@@ -7,7 +7,7 @@ import Foundation
 import OpenTelemetryApi
 
 public class TracerProviderSdk: TracerProvider {
-    private var tracerProvider = [InstrumentationLibraryInfo: TracerSdk]()
+    internal var tracerProvider = [InstrumentationLibraryInfo: TracerSdk]()
     internal var sharedState: TracerSharedState
     internal static let emptyName = "unknown"
 
@@ -143,4 +143,49 @@ public class TracerProviderSdk: TracerProvider {
     public func forceFlush(timeout: TimeInterval? = nil) {
         sharedState.activeSpanProcessor.forceFlush(timeout: timeout)
     }
+}
+
+public class InterceptedTracerProviderSdk: TracerProviderSdk {
+	
+	public var parentSpan: Span? {
+		didSet {
+			tracerProvider.values.forEach({
+				($0 as? InterceptedTracerSdk)?.parentSpan = parentSpan
+			})
+		}
+	}
+	
+	public override init(clock: Clock = MillisClock(), idGenerator: IdGenerator = RandomIdGenerator(), resource: Resource = EnvVarResource.resource, spanLimits: SpanLimits = SpanLimits(), sampler: Sampler = Samplers.parentBased(root: Samplers.alwaysOn), spanProcessors: [SpanProcessor] = []) {
+		super.init(clock: clock, idGenerator: idGenerator, resource: resource, spanLimits: spanLimits, sampler: sampler, spanProcessors: spanProcessors)
+	}
+	
+	public override func get(instrumentationName: String, instrumentationVersion: String? = nil) -> Tracer {
+		if sharedState.hasBeenShutdown {
+			return DefaultTracer.instance
+		}
+
+		var instrumentationName = instrumentationName
+		if instrumentationName.isEmpty {
+			// Per the spec, empty is "invalid"
+			print("Tracer requested without instrumentation name.")
+			instrumentationName = TracerProviderSdk.emptyName
+		}
+		let instrumentationLibraryInfo = InstrumentationLibraryInfo(name: instrumentationName, version: instrumentationVersion ?? "")
+		if let tracer = tracerProvider[instrumentationLibraryInfo] {
+			return tracer
+		} else {
+			// Re-check if the value was added since the previous check, this can happen if multiple
+			// threads try to access the same named tracer during the same time. This way we ensure that
+			// we create only one TracerSdk per name.
+			if let tracer = tracerProvider[instrumentationLibraryInfo] {
+				// A different thread already added the named Tracer, just reuse.
+				return tracer
+			}
+			let tracer = InterceptedTracerSdk(sharedState: sharedState, instrumentationLibraryInfo: instrumentationLibraryInfo)
+			tracer.parentSpan = parentSpan
+			tracerProvider[instrumentationLibraryInfo] = tracer
+			return tracer
+		}
+	}
+
 }
