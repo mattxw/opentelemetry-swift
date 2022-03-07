@@ -50,6 +50,7 @@ internal protocol ExportPerformancePreset {
 }
 
 public struct PersistencePerformancePreset: Equatable, StoragePerformancePreset, ExportPerformancePreset {
+	
     // MARK: - StoragePerformancePreset
 
     let maxFileSize: UInt64
@@ -115,4 +116,20 @@ public struct PersistencePerformancePreset: Equatable, StoragePerformancePreset,
         maxExportDelay: 5,
         exportDelayChangeRate: 0.5 // reduce significantly for more exports in short-lived app extensions
     )
+	
+	public init(maxFileSize: UInt64, maxDirectorySize: UInt64, maxFileAgeForWrite: TimeInterval, minFileAgeForRead: TimeInterval, maxFileAgeForRead: TimeInterval, maxObjectsInFile: Int, maxObjectSize: UInt64, synchronousWrite: Bool, initialExportDelay: TimeInterval, defaultExportDelay: TimeInterval, minExportDelay: TimeInterval, maxExportDelay: TimeInterval, exportDelayChangeRate: Double) {
+		self.maxFileSize = maxFileSize
+		self.maxDirectorySize = maxDirectorySize
+		self.maxFileAgeForWrite = maxFileAgeForWrite
+		self.minFileAgeForRead = minFileAgeForRead
+		self.maxFileAgeForRead = maxFileAgeForRead
+		self.maxObjectsInFile = maxObjectsInFile
+		self.maxObjectSize = maxObjectSize
+		self.synchronousWrite = synchronousWrite
+		self.initialExportDelay = initialExportDelay
+		self.defaultExportDelay = defaultExportDelay
+		self.minExportDelay = minExportDelay
+		self.maxExportDelay = maxExportDelay
+		self.exportDelayChangeRate = exportDelayChangeRate
+	}
 }
